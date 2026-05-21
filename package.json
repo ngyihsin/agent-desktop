@@ -1,0 +1,157 @@
+{
+  "name": "agent-desktop",
+  "displayName": "Agent Desktop",
+  "description": "Host multiple Claude Code projects in parallel, each authoring a set of .md files into a finished technical document.",
+  "version": "0.0.1",
+  "publisher": "agent-desktop-local",
+  "license": "UNLICENSED",
+  "private": true,
+  "engines": {
+    "vscode": "^1.85.0",
+    "node": ">=20"
+  },
+  "categories": [
+    "Other"
+  ],
+  "main": "./out/extension.js",
+  "activationEvents": [
+    "onView:agentDesktopProjects",
+    "onCommand:agentDesktop.newProject",
+    "onCommand:agentDesktop.openRecentProject",
+    "onCommand:agentDesktop.openProject"
+  ],
+  "contributes": {
+    "commands": [
+      {
+        "command": "agentDesktop.newProject",
+        "title": "New Project",
+        "category": "Agent Desktop",
+        "icon": "$(add)"
+      },
+      {
+        "command": "agentDesktop.openRecentProject",
+        "title": "Open Recent Project",
+        "category": "Agent Desktop",
+        "icon": "$(history)"
+      },
+      {
+        "command": "agentDesktop.openProject",
+        "title": "Open Project",
+        "category": "Agent Desktop",
+        "icon": "$(folder-opened)"
+      },
+      {
+        "command": "agentDesktop.refreshProjects",
+        "title": "Refresh Projects",
+        "category": "Agent Desktop",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "agentDesktop.openProjectChat",
+        "title": "Open Chat",
+        "category": "Agent Desktop",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "agentDesktop.quoteInChat",
+        "title": "Quote Selection in Chat",
+        "category": "Agent Desktop",
+        "icon": "$(quote)"
+      },
+      {
+        "command": "agentDesktop.removeProject",
+        "title": "Remove Project",
+        "category": "Agent Desktop",
+        "icon": "$(trash)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentDesktop",
+          "title": "Agent Desktop",
+          "icon": "resources/icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentDesktop": [
+        {
+          "id": "agentDesktopProjects",
+          "name": "Projects"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "agentDesktop.quoteInChat",
+        "key": "ctrl+shift+q",
+        "mac": "cmd+shift+q",
+        "when": "editorTextFocus && editorHasSelection"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "agentDesktop.newProject",
+          "when": "view == agentDesktopProjects",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentDesktop.openRecentProject",
+          "when": "view == agentDesktopProjects",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentDesktop.openProject",
+          "when": "view == agentDesktopProjects",
+          "group": "navigation@3"
+        },
+        {
+          "command": "agentDesktop.refreshProjects",
+          "when": "view == agentDesktopProjects",
+          "group": "navigation@4"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "agentDesktop.quoteInChat",
+          "when": "editorTextFocus && editorHasSelection",
+          "group": "agentDesktop@1"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agentDesktop.removeProject",
+          "when": "view == agentDesktopProjects && viewItem == agentDesktopProject",
+          "group": "agentDesktop@1"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "agentDesktopProjects",
+        "contents": "No Agent Desktop projects yet.\n\n[Create New Project](command:agentDesktop.newProject)\n\n[Open Recent Project](command:agentDesktop.openRecentProject)\n\nA project is a codeatlas-scaffolded workspace where Claude Code authors documentation. Each project keeps a persistent claude session that resumes across VS Code restarts.",
+        "when": "!agentDesktopHasProjects"
+      }
+    ]
+  },
+  "scripts": {
+    "build": "node esbuild.config.mjs",
+    "watch": "node esbuild.config.mjs --watch",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.3.10",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.4.0"
+  },
+  "dependencies": {
+    "highlight.js": "^11.11.1",
+    "marked": "^18.0.3"
+  }
+}
