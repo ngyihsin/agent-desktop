@@ -1,9 +1,11 @@
 **/.vscode
+**/.claude
 **/node_modules
 src/**
 test/**
 template/
 logs/
+*.vsix
 SPEC.md
 DESIGN.md
 HANDOFF.md

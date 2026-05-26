@@ -2,10 +2,14 @@
   "name": "agent-desktop",
   "displayName": "Agent Desktop",
   "description": "Host multiple Claude Code projects in parallel, each authoring a set of .md files into a finished technical document.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "agent-desktop-local",
-  "license": "UNLICENSED",
+  "license": "MIT",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ngyihsin/agent-desktop.git"
+  },
   "engines": {
     "vscode": "^1.85.0",
     "node": ">=20"
