@@ -27,6 +27,7 @@ const statusEl = document.getElementById("status") as HTMLDivElement;
 const form = document.getElementById("prompt-form") as HTMLFormElement;
 const inputEl = document.getElementById("input") as HTMLTextAreaElement;
 const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
+const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const autocompleteEl = document.getElementById("autocomplete") as HTMLDivElement;
 
 // Tracks the div for the assistant turn currently streaming.
@@ -114,6 +115,7 @@ function setBusy(busy: boolean): void {
   submitBtn.disabled = busy;
   inputEl.disabled = busy;
   submitBtn.textContent = busy ? "Sending…" : "Send";
+  stopBtn.classList.toggle("hidden", !busy);
 }
 
 function buildUserDiv(text: string): HTMLElement {
@@ -348,6 +350,11 @@ form.addEventListener("submit", (e: SubmitEvent) => {
 });
 
 submitBtn.addEventListener("click", submitPrompt);
+
+stopBtn.addEventListener("click", () => {
+  vscode.postMessage({ kind: "interrupt" } satisfies FromWebview);
+  setBusy(false);
+});
 
 inputEl.addEventListener("input", () => {
   const val = inputEl.value;

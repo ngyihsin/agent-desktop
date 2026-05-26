@@ -102,6 +102,7 @@ function pickDominantModel(
  */
 export class SessionManager {
   private transcript: TranscriptMessage[] = [];
+  private activeChild: ChildProcess | null = null;
 
   constructor(
     private readonly folderPath: string,
@@ -113,6 +114,10 @@ export class SessionManager {
 
   getTranscript(): readonly TranscriptMessage[] {
     return this.transcript;
+  }
+
+  interrupt(): void {
+    this.activeChild?.kill();
   }
 
   /** Run a single user → claude → reply turn end-to-end. */
@@ -161,6 +166,7 @@ export class SessionManager {
     let contextPct = 0;
     let costUsd = 0;
 
+    this.activeChild = child;
     try {
       for await (const ev of streamJsonl(child.stdout)) {
         this.logger.appendLine(JSON.stringify(ev));
@@ -206,6 +212,8 @@ export class SessionManager {
         kind: "error",
         message: err instanceof Error ? err.message : String(err),
       });
+    } finally {
+      this.activeChild = null;
     }
 
     await new Promise<void>((resolve) => {

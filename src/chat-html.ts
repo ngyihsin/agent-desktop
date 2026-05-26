@@ -35,6 +35,9 @@ export function getChatHtml(
   button { padding: 8px 16px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; cursor: pointer; font-family: inherit; }
   button:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
   button:disabled { opacity: 0.5; cursor: not-allowed; }
+  #stop-btn { background: var(--vscode-inputValidation-errorBackground, #5a1d1d); color: var(--vscode-errorForeground, #f48771); border: 1px solid var(--vscode-inputValidation-errorBorder, #be1100); }
+  #stop-btn:hover { opacity: 0.85; }
+  #stop-btn.hidden { display: none; }
 
   /* ── Turns ───────────────────────────────────────────────── */
   .turn { margin-bottom: 16px; }
@@ -119,6 +122,7 @@ export function getChatHtml(
     <textarea id="input" rows="3" placeholder="Type a prompt… / for commands, Cmd/Ctrl+Enter to send" aria-label="Prompt"></textarea>
   </div>
   <button type="button" id="submit-btn">Send</button>
+  <button type="button" id="stop-btn" class="hidden">Stop</button>
 </form>
 <script src="${webviewScriptUri}"></script>
 </body>

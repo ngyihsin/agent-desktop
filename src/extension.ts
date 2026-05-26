@@ -50,6 +50,8 @@ export function activate(context: vscode.ExtensionContext): void {
     if (!session) return;
     if (msg.kind === "submit_prompt") {
       void session.prompt(msg.text);
+    } else if (msg.kind === "interrupt") {
+      session.interrupt();
     } else if (msg.kind === "request_transcript") {
       const entry = store.get(projectPath);
       sharedPanel.switchToProject(
