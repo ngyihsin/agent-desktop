@@ -49,6 +49,20 @@ describe("buildArgs", () => {
     }
   });
 
+  it("appends --add-dir pairs for each additionalDir", () => {
+    const dirs = ["/home/user/repo", "/tmp/data"];
+    const argv = buildArgs("fresh", SID, dirs);
+    expect(argv).toContain("--add-dir");
+    expect(argv[argv.indexOf("--add-dir") + 1]).toBe("/home/user/repo");
+    const second = argv.lastIndexOf("--add-dir");
+    expect(argv[second + 1]).toBe("/tmp/data");
+  });
+
+  it("emits no --add-dir when additionalDirs is empty", () => {
+    expect(buildArgs("fresh", SID, [])).not.toContain("--add-dir");
+    expect(buildArgs("fresh", SID)).not.toContain("--add-dir");
+  });
+
   it("is pure: repeated calls return equal arrays without mutating the config", () => {
     const a = buildArgs("resume", SID);
     const b = buildArgs("resume", SID);

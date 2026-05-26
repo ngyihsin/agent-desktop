@@ -4,6 +4,7 @@ import type { ToWebview, TranscriptMessage } from "./chat-webview";
 import { type SpawnMode, spawnClaude } from "./claude-spawn";
 import { type JsonlEvent, streamJsonl } from "./jsonl";
 import type { ProjectStore, ProjectStoreEntry } from "./project-store";
+import type { ToolUseInfo } from "./webview-protocol";
 
 /** Minimal shape SessionManager needs from a webview. Keeps tests vscode-free. */
 export interface ChatSender {
@@ -21,6 +22,7 @@ export type Spawner = (
   mode: SpawnMode,
   sessionId: string,
   cwd: string,
+  additionalDirs?: readonly string[],
 ) => ChildProcess;
 
 /**
@@ -132,7 +134,7 @@ export class SessionManager {
 
     const mode = pickMode(entry);
     const turnId = randomUUID();
-    const child = this.spawner(mode, entry.sessionId, this.folderPath);
+    const child = this.spawner(mode, entry.sessionId, this.folderPath, entry.allowedDirs);
 
     if (!child.stdin || !child.stdout) {
       this.chat.send({
@@ -162,10 +164,35 @@ export class SessionManager {
     try {
       for await (const ev of streamJsonl(child.stdout)) {
         this.logger.appendLine(JSON.stringify(ev));
+
+        if (ev.type === "system" && ev.subtype === "init") {
+          const init = ev as { slash_commands?: string[]; skills?: string[] };
+          const commands = [...new Set([...(init.slash_commands ?? []), ...(init.skills ?? [])])];
+          if (commands.length > 0) {
+            this.chat.send({ kind: "commands_available", commands });
+          }
+          continue;
+        }
+
+        if (ev.type === "system" && ev.subtype === "status") {
+          this.chat.send({
+            kind: "status_update",
+            status: (ev.status as string | null) ?? null,
+          });
+          continue;
+        }
+
         const delta = extractTextDelta(ev);
         if (delta) {
           assistantText += delta;
           this.chat.send({ kind: "text_delta", turnId, text: delta });
+          continue;
+        }
+        if (ev.type === "assistant") {
+          const tools = extractToolUses(ev);
+          if (tools.length > 0) {
+            this.chat.send({ kind: "tool_uses", tools });
+          }
           continue;
         }
         if (ev.type === "result") {
@@ -204,7 +231,43 @@ export class SessionManager {
       cost_usd: costUsd,
       context_pct: contextPct,
     });
+
+    // If Claude reported that it cannot access a path outside the session
+    // directory, surface a "Grant Access" button in the webview so the user
+    // can pick a folder and restart the session with --add-dir.
+    if (isBlockedAccessResponse(assistantText)) {
+      this.chat.send({ kind: "grant_access_prompt" });
+    }
   }
+}
+
+/**
+ * Heuristic: does the assistant response indicate Claude Code blocked a
+ * file-system access request due to session directory restrictions?
+ */
+function isBlockedAccessResponse(text: string): boolean {
+  const t = text.toLowerCase();
+  return (
+    t.includes("session is locked") ||
+    t.includes("file access is restricted") ||
+    t.includes("cannot access any path outside") ||
+    (t.includes("don't have permission") && t.includes("access")) ||
+    (t.includes("blocked") && t.includes("locked"))
+  );
+}
+
+/** Extract tool_use blocks from a completed `assistant` event. */
+function extractToolUses(ev: JsonlEvent): ToolUseInfo[] {
+  const msg = (ev as { message?: { content?: unknown[] } }).message;
+  if (!Array.isArray(msg?.content)) return [];
+  const tools: ToolUseInfo[] = [];
+  for (const block of msg.content) {
+    const b = block as { type?: string; name?: string; input?: Record<string, unknown> };
+    if (b.type === "tool_use" && typeof b.name === "string") {
+      tools.push({ name: b.name, input: b.input ?? {} });
+    }
+  }
+  return tools;
 }
 
 /**

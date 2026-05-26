@@ -360,6 +360,27 @@ describe("SessionManager.prompt", () => {
     expect(tc[0]?.context_pct).toBeCloseTo(18917 / 400_000, 4);
   });
 
+  it("forwards system.status events as status_update messages", async () => {
+    const fixture = readFileSync(
+      new URL("./fixtures/spike1.jsonl", import.meta.url),
+      "utf8",
+    );
+    const sm = new SessionManager(
+      FOLDER,
+      store,
+      chat,
+      logger,
+      spawnerFor(fixture, {}),
+    );
+    await sm.prompt("hi");
+
+    const updates = chat.ofKind("status_update");
+    // spike1 has: system.status "requesting" then system.status null
+    expect(updates).toHaveLength(2);
+    expect(updates[0]?.status).toBe("requesting");
+    expect(updates[1]?.status).toBeNull();
+  });
+
   it("appends turn entries to the transcript in order", async () => {
     const jsonl =
       JSON.stringify({

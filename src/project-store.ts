@@ -12,6 +12,7 @@ export type ProjectStoreEntry = {
   createdAt: string;             // ISO 8601
   lastResumeAt: string | null;   // null until the first successful --resume
   modelHint?: string;            // optional per-project model override (e.g. "sonnet")
+  allowedDirs?: string[];        // extra dirs passed via --add-dir (DESIGN Decision 2 evolution)
 };
 
 export type ProjectListItem = {

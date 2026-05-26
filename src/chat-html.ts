@@ -29,7 +29,8 @@ export function getChatHtml(
   #transcript { flex: 1; overflow-y: auto; border: 1px solid var(--vscode-panel-border); padding: 12px; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
   #status { font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 8px; min-height: 16px; }
   #prompt-form { display: flex; gap: 8px; align-items: flex-end; }
-  #input { flex: 1; padding: 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); font-family: inherit; font-size: 13px; resize: vertical; min-height: 60px; }
+  #input-wrap { flex: 1; position: relative; }
+  #input { width: 100%; box-sizing: border-box; padding: 8px; background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); font-family: inherit; font-size: 13px; resize: vertical; min-height: 60px; }
   #input:focus { outline: 1px solid var(--vscode-focusBorder); }
   button { padding: 8px 16px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; cursor: pointer; font-family: inherit; }
   button:hover:not(:disabled) { background: var(--vscode-button-hoverBackground); }
@@ -71,6 +72,29 @@ export function getChatHtml(
   .markdown strong { font-weight: 600; }
   .markdown em { font-style: italic; }
 
+  /* ── Slash-command autocomplete ─────────────────────────── */
+  .autocomplete { position: absolute; bottom: calc(100% + 4px); left: 0; right: 0; background: var(--vscode-dropdown-background, var(--vscode-editor-background)); border: 1px solid var(--vscode-dropdown-border, var(--vscode-panel-border)); border-radius: 4px; max-height: 220px; overflow-y: auto; z-index: 100; box-shadow: 0 -2px 8px rgba(0,0,0,.2); }
+  .autocomplete.hidden { display: none; }
+  .autocomplete-item { padding: 5px 10px; cursor: pointer; font-size: 12px; font-family: var(--vscode-editor-font-family); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .autocomplete-item .cmd-name { color: var(--vscode-symbolIcon-functionForeground, var(--vscode-textLink-foreground)); font-weight: 600; }
+  .autocomplete-item:hover, .autocomplete-item.selected { background: var(--vscode-list-hoverBackground, rgba(255,255,255,.07)); }
+
+  /* ── Tool-use cards ─────────────────────────────────────── */
+  .tool-calls { margin: 4px 0 8px 0; display: flex; flex-direction: column; gap: 3px; }
+  .tool-call { font-size: 11px; }
+  .tool-call summary { cursor: pointer; user-select: none; color: var(--vscode-descriptionForeground); list-style: none; display: flex; align-items: center; gap: 5px; padding: 2px 0; }
+  .tool-call summary::-webkit-details-marker { display: none; }
+  .tool-call summary .tool-icon { opacity: 0.7; }
+  .tool-call summary .tool-name { font-weight: 600; color: var(--vscode-symbolIcon-functionForeground, var(--vscode-textLink-activeForeground)); }
+  .tool-call[open] summary .tool-icon { opacity: 1; }
+  .tool-call pre { margin: 3px 0 3px 18px; padding: 6px 8px; background: var(--vscode-textCodeBlock-background); font-family: var(--vscode-editor-font-family); font-size: 11px; overflow-x: auto; border-radius: 3px; white-space: pre-wrap; word-break: break-all; color: var(--vscode-editor-foreground); }
+
+  /* ── Grant-access banner ─────────────────────────────────── */
+  .grant-access-banner { display: flex; align-items: center; gap: 10px; padding: 8px 12px; margin: 8px 0; background: var(--vscode-inputValidation-warningBackground, rgba(255,200,0,.12)); border: 1px solid var(--vscode-inputValidation-warningBorder, #b89500); border-radius: 4px; font-size: 12px; }
+  .grant-access-banner span { flex: 1; color: var(--vscode-foreground); }
+  .grant-access-btn { padding: 4px 10px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; cursor: pointer; border-radius: 2px; font-size: 12px; white-space: nowrap; }
+  .grant-access-btn:hover { background: var(--vscode-button-hoverBackground); }
+
   /* ── Syntax highlighting (VS Code dark+ compatible) ──────── */
   .hljs { display: block; overflow-x: auto; padding: 12px; background: var(--vscode-textCodeBlock-background, #1e1e1e); color: var(--vscode-editor-foreground, #d4d4d4); border-radius: 4px; }
   .hljs-keyword,.hljs-selector-tag,.hljs-built_in,.hljs-name,.hljs-tag { color: #569cd6; }
@@ -90,7 +114,10 @@ export function getChatHtml(
 <div id="transcript" aria-live="polite"></div>
 <div id="status"></div>
 <form id="prompt-form">
-  <textarea id="input" rows="3" placeholder="Type a prompt… Cmd/Ctrl+Enter to send" aria-label="Prompt"></textarea>
+  <div id="input-wrap">
+    <div id="autocomplete" class="autocomplete hidden"></div>
+    <textarea id="input" rows="3" placeholder="Type a prompt… / for commands, Cmd/Ctrl+Enter to send" aria-label="Prompt"></textarea>
+  </div>
   <button type="button" id="submit-btn">Send</button>
 </form>
 <script src="${webviewScriptUri}"></script>

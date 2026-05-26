@@ -43,11 +43,14 @@ export function activate(context: vscode.ExtensionContext): void {
   // Route webview messages to the correct session.
   sharedPanel.onMessage((projectPath, msg) => {
     const session = sessions.get(projectPath);
+    if (msg.kind === "grant_access") {
+      void handleGrantAccess(projectPath);
+      return;
+    }
     if (!session) return;
     if (msg.kind === "submit_prompt") {
       void session.prompt(msg.text);
     } else if (msg.kind === "request_transcript") {
-      // Webview reloaded (e.g. devtools refresh) — replay current transcript.
       const entry = store.get(projectPath);
       sharedPanel.switchToProject(
         projectPath,
@@ -56,6 +59,46 @@ export function activate(context: vscode.ExtensionContext): void {
       );
     }
   });
+
+  async function handleGrantAccess(projectPath: string): Promise<void> {
+    const entry = store.get(projectPath);
+    if (!entry) return;
+
+    const uris = await vscode.window.showOpenDialog({
+      title: `Grant Directory Access — ${entry.displayName}`,
+      canSelectFiles: false,
+      canSelectFolders: true,
+      canSelectMany: false,
+      openLabel: "Grant Access",
+    });
+    if (!uris || uris.length === 0) return;
+
+    const newDir = uris[0].fsPath;
+    if ((entry.allowedDirs ?? []).includes(newDir)) {
+      await vscode.window.showInformationMessage(
+        `Agent Desktop: ${newDir} is already allowed for "${entry.displayName}".`,
+      );
+      return;
+    }
+
+    // Start a new session — Claude Code locks allowed paths at session creation,
+    // so --add-dir only takes effect on the very first spawn of a session.
+    const { randomUUID } = await import("node:crypto");
+    await store.update(projectPath, {
+      allowedDirs: [...(entry.allowedDirs ?? []), newDir],
+      sessionId: randomUUID(),
+      lastResumeAt: null,
+    });
+
+    sessions.delete(projectPath);
+    const oc = outputChannels.get(projectPath);
+    oc?.dispose();
+    outputChannels.delete(projectPath);
+
+    // Re-open with the new session so the seed prompt fires immediately.
+    const freshEntry = store.get(projectPath);
+    if (freshEntry) openProject(projectPath, freshEntry);
+  }
 
   // Open (or switch to) a project in the shared panel.
   function openProject(folderPath: string, entry: ProjectStoreEntry): void {
@@ -191,6 +234,68 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
     vscode.commands.registerCommand("agentDesktop.quoteInChat", () =>
       runQuoteInChatCommand(store, sessions, sharedPanel),
+    ),
+    vscode.commands.registerCommand(
+      "agentDesktop.addDirectory",
+      async (element: TreeElement) => {
+        if (element?.kind !== "project") return;
+        const { folderPath } = element;
+        // Re-read entry fresh from store (tree element may be stale).
+        const entry = store.get(folderPath);
+        if (!entry) return;
+
+        const uris = await vscode.window.showOpenDialog({
+          title: `Add Directory Access — ${entry.displayName}`,
+          canSelectFiles: false,
+          canSelectFolders: true,
+          canSelectMany: false,
+          openLabel: "Grant Access",
+        });
+        if (!uris || uris.length === 0) return;
+
+        const newDir = uris[0].fsPath;
+        const current = entry.allowedDirs ?? [];
+        if (current.includes(newDir)) {
+          await vscode.window.showInformationMessage(
+            `Agent Desktop: ${newDir} is already allowed for "${entry.displayName}".`,
+          );
+          return;
+        }
+
+        // Claude Code locks allowed paths at session-creation time; --add-dir
+        // has no effect on a resumed session. A new session must be started.
+        const confirm = await vscode.window.showWarningMessage(
+          `Adding directory access requires starting a new Claude session for "${entry.displayName}". The current conversation will be cleared. Continue?`,
+          { modal: true },
+          "Start New Session",
+        );
+        if (confirm !== "Start New Session") return;
+
+        // Update store: new allowedDirs + new sessionId + clear lastResumeAt
+        // so the next spawn is fresh and picks up --add-dir from the start.
+        const { randomUUID } = await import("node:crypto");
+        await store.update(folderPath, {
+          allowedDirs: [...current, newDir],
+          sessionId: randomUUID(),
+          lastResumeAt: null,
+        });
+
+        // Tear down the in-memory session so it is recreated on next openProject.
+        sessions.delete(folderPath);
+        const oc = outputChannels.get(folderPath);
+        oc?.dispose();
+        outputChannels.delete(folderPath);
+
+        // Reset the panel if this project is currently active.
+        if (sharedPanel.activeProjectPath === folderPath) {
+          sharedPanel.reset();
+        }
+
+        treeProvider.refresh();
+        await vscode.window.showInformationMessage(
+          `Agent Desktop: new session started with access to ${newDir}.`,
+        );
+      },
     ),
     vscode.commands.registerCommand(
       "agentDesktop.removeProject",

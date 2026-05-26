@@ -60,30 +60,40 @@ export const CLAUDE_SPAWN_CONFIG: ClaudeSpawnConfig = {
  * Fresh:  freshArgs ++ ["--session-id", <uuid>]
  * Resume: resumeArgsTemplate with "{sessionId}" substituted
  *
+ * `additionalDirs` maps to one `--add-dir <path>` pair per entry, appended
+ * at the end. This extends claude's file-access scope beyond the project cwd
+ * (DESIGN Decision 2 evolution — `--add-dir` flag discovery).
+ *
  * Kept as pure data manipulation so it can be unit-tested without spawning
  * any process (see test/unit/claude-spawn.test.ts).
  */
-export function buildArgs(mode: SpawnMode, sessionId: string): string[] {
-  if (mode === "fresh") {
-    return [...CLAUDE_SPAWN_CONFIG.freshArgs, "--session-id", sessionId];
-  }
-  return CLAUDE_SPAWN_CONFIG.resumeArgsTemplate.map((a) =>
-    a.replace("{sessionId}", sessionId),
-  );
+export function buildArgs(
+  mode: SpawnMode,
+  sessionId: string,
+  additionalDirs: readonly string[] = [],
+): string[] {
+  const base =
+    mode === "fresh"
+      ? [...CLAUDE_SPAWN_CONFIG.freshArgs, "--session-id", sessionId]
+      : CLAUDE_SPAWN_CONFIG.resumeArgsTemplate.map((a) => a.replace("{sessionId}", sessionId));
+
+  const dirArgs = additionalDirs.flatMap((d) => ["--add-dir", d]);
+  return [...base, ...dirArgs];
 }
 
 /**
  * Spawn a claude child process. Returns the `ChildProcess` so the caller
- * (SessionManager — Step 8) can wire up stdin / stdout / stderr / exit.
- *
- * This function is *not* unit-tested directly — it just bridges `buildArgs`
- * and `spawnOptions` into Node's `spawn`. Integration coverage comes from
- * the Phase 1 end-to-end test.
+ * (SessionManager) can wire up stdin / stdout / stderr / exit.
  */
-export function spawnClaude(mode: SpawnMode, sessionId: string, cwd: string): ChildProcess {
+export function spawnClaude(
+  mode: SpawnMode,
+  sessionId: string,
+  cwd: string,
+  additionalDirs: readonly string[] = [],
+): ChildProcess {
   return spawn(
     CLAUDE_SPAWN_CONFIG.command,
-    buildArgs(mode, sessionId),
+    buildArgs(mode, sessionId, additionalDirs),
     CLAUDE_SPAWN_CONFIG.spawnOptions(cwd),
   );
 }

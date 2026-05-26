@@ -63,6 +63,12 @@
         "title": "Remove Project",
         "category": "Agent Desktop",
         "icon": "$(trash)"
+      },
+      {
+        "command": "agentDesktop.addDirectory",
+        "title": "Add Directory Access",
+        "category": "Agent Desktop",
+        "icon": "$(folder-library)"
       }
     ],
     "viewsContainers": {
@@ -122,9 +128,14 @@
       ],
       "view/item/context": [
         {
-          "command": "agentDesktop.removeProject",
+          "command": "agentDesktop.addDirectory",
           "when": "view == agentDesktopProjects && viewItem == agentDesktopProject",
           "group": "agentDesktop@1"
+        },
+        {
+          "command": "agentDesktop.removeProject",
+          "when": "view == agentDesktopProjects && viewItem == agentDesktopProject",
+          "group": "agentDesktop@2"
         }
       ]
     },
