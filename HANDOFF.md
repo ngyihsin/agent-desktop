@@ -15,11 +15,11 @@
 
 ## Current Status
 
-**Phase:** Phase 3 — Prototype (**Phase 1 COMPLETE: 10/10 steps**; **Phase 2 COMPLETE + UX polish**; 87 passing tests)
+**Phase:** Phase 3 — Prototype (**Phase 1 COMPLETE: 10/10 steps**; **Phase 2 COMPLETE + UX polish**; **Phase 3 Features A/B/C COMPLETE**; 90 passing tests)
 
-**Progress:** Phase 2 fully implemented and smoke-tested. Extension is in daily-usable state: single shared chat panel with project switching, markdown preview, text annotation, three-column layout (sidebar / file editor / chat), `.md` files open as rendered preview. User confirmed "the app looks good now" (2026-05-21).
+**Progress:** Phase 3 features A, B, and C shipped. Extension now shows live Claude status, collapsible tool-use cards per turn, and a `/`-triggered autocomplete for slash commands and skills. Directory access (`--add-dir`) is fully wired with a smart "Grant Access" in-chat banner. All committed to `main` (commit `4f9c43e`).
 
-**Next Milestone:** Phase 3 — auto-compact at >75% context, folder-delete watcher, MCP config UI (IMPL-GUIDE Steps 15-18).
+**Next Milestone:** Phase 3 remaining — auto-compact at >75% context, interrupt button, folder-delete watcher, MCP config UI (IMPL-GUIDE Steps 15-18).
 
 **Blockers:** None.
 
@@ -29,9 +29,14 @@
 > - ✅ Phase 2 spikes complete (CLI invocation, context-window monitoring, `/compact` injectability)
 > - ✅ Design complete (DESIGN.md + IMPLEMENTATION-GUIDE.md drafted)
 > - ✅ Implementation guide ready
-> - ✅ Prototype working — single-project end-to-end (IMPL-GUIDE Phase 1 10/10; 87 passing tests; F5-ready)
+> - ✅ Prototype working — single-project end-to-end (IMPL-GUIDE Phase 1 10/10; 90 passing tests; F5-ready)
 > - ✅ Multi-project working (shared panel, project switching, concurrent sessions, sidebar listing)
+> - ✅ Phase 3 Feature A — Claude status display
+> - ✅ Phase 3 Feature B — Tool use visibility
+> - ✅ Phase 3 Feature C — Slash-command / skills autocomplete
+> - ✅ Directory access (`--add-dir`) + Grant Access flow
 > - ⬜ Auto-compact at 75% context working
+> - ⬜ Interrupt (stop) button
 > - ⬜ End-to-end demo (project authored across multiple days produces a finished .md set)
 
 ### What We Have
@@ -40,21 +45,21 @@
 
 | File | Role |
 |---|---|
-| `extension.ts` | Activation, command registration, `openProject` closure, session/OutputChannel maps |
+| `extension.ts` | Activation, command registration, `openProject` closure, `handleGrantAccess`, session/OutputChannel maps; `addDirectory` + `removeProject` tree commands |
 | `shared-chat-panel.ts` | **Single** `WebviewPanel` shared across all projects; routes messages per active project |
-| `webview-main.ts` | Browser-side script (bundled → `out/webview.js`): markdown render, hljs, quote_text |
-| `webview-protocol.ts` | Shared `ToWebview` / `FromWebview` / `TranscriptMessage` types (no vscode import) |
-| `chat-html.ts` | Pure HTML template with inline CSS (markdown + hljs theme); loads `out/webview.js` |
+| `webview-main.ts` | Browser-side script (bundled → `out/webview.js`): markdown render, hljs, tool-use cards, slash-command autocomplete, grant-access banner, quote_text |
+| `webview-protocol.ts` | Shared `ToWebview` / `FromWebview` / `TranscriptMessage` / `ToolUseInfo` types (no vscode import) |
+| `chat-html.ts` | Pure HTML template with inline CSS (markdown, hljs, tool cards, autocomplete dropdown, grant-access banner); loads `out/webview.js` |
 | `chat-webview.ts` | `ChatWebviewPanel` class (kept for type re-exports; `SharedChatPanel` is the live panel) |
-| `session-manager.ts` | Per-project turn orchestrator: spawn → JSONL stream → transcript → turn_complete |
-| `project-store.ts` | `globalState` wrapper for `ProjectStoreEntry` per folder path |
+| `session-manager.ts` | Per-project turn orchestrator: spawn → JSONL stream → status/init/tool_uses/grant_access_prompt → transcript → turn_complete |
+| `project-store.ts` | `globalState` wrapper for `ProjectStoreEntry` per folder path; includes `allowedDirs?: string[]` |
 | `projects-tree-provider.ts` | Activity-bar sidebar: project nodes + file tree, click → `agentDesktop.openProjectChat` |
 | `projects-tree-helpers.ts` | Pure `sortFsEntries` helper (dirs-first, alpha) |
 | `workspace-manager.ts` | Writes `~/agent-desktop-projects/agent-desktop.code-workspace` |
 | `chat-panel-registry.ts` | Thin Map wrapper used only by unit tests now; logic moved to `extension.ts` |
 | `activation-check.ts` | `claude --version` gate |
 | `jsonl.ts` | 30-line async NDJSON splitter |
-| `claude-spawn.ts` | Declarative spawn config + `buildArgs` + `spawnClaude` |
+| `claude-spawn.ts` | Declarative spawn config + `buildArgs(mode, sessionId, additionalDirs)` + `spawnClaude`; `--add-dir` support |
 | `scaffold.ts` | `copyDirectoryRecursive` for codeatlas seeding |
 | `paths.ts` | `slugify` + `defaultProjectPath` |
 | `commands/new-project.ts` | "New Project" flow; calls `openProject` callback |
@@ -64,13 +69,13 @@
 | `commands/quote-in-chat.ts` | "Quote Selection in Chat": finds project for active file, sends `quote_text` to panel |
 | `commands/recent-items.ts` | Pure QuickPick item builder |
 
-**Build outputs:** `out/extension.js` (~34 KB), `out/webview.js` (~1.8 MB, includes marked + highlight.js)
+**Build outputs:** `out/extension.js` (~45 KB), `out/webview.js` (~1.8 MB, includes marked + highlight.js)
 
-**Tests:** 87 passing across 11 test files (vitest). All vscode-free.
+**Tests:** 90 passing across 11 test files (vitest). All vscode-free.
 
 **VS Code config:** `.vscode/launch.json` has `preLaunchTask: "build"` → F5 always rebuilds both bundles first.
 
-### Key Design Decisions (Phase 2 additions)
+### Key Design Decisions (Phase 2 + Phase 3 additions)
 
 | Decision | Choice |
 |---|---|
@@ -81,15 +86,19 @@
 | Auto-file-open | **Removed** — no file opens automatically on project open or tab switch; user navigates via sidebar tree |
 | `openProject` pattern | Single closure in `extension.ts`; passed as `OpenProjectFn` callback to all command handlers (no registry/extensionUri plumbing through every layer) |
 | Background sessions | Sessions for all projects stay alive; non-active projects' messages are silently dropped by `senderFor`; transcript replayed on next switch |
+| Directory access (`--add-dir`) | Claude Code locks allowed paths at session creation. Adding a new dir requires a new `sessionId` + `lastResumeAt: null` so the next spawn is fresh. Two entry points: tree-command `agentDesktop.addDirectory` (explicit) and the in-chat "Grant Access" banner (reactive, triggered by blocked-access heuristic). |
+| Tool-use visibility | Parsed from `type:"assistant"` JSONL event `message.content` (tool_use blocks). Sent as `tool_uses` to webview. Rendered as collapsible `<details>/<summary>` cards inserted above streaming text in the active turn div. |
+| Slash-command autocomplete | `system.init` event provides `slash_commands[]` + `skills[]`. Merged, deduped, sent as `commands_available`. Webview shows dropdown when input starts with `/` (no space yet). Arrow keys / Enter / Tab / Esc navigation. List refreshes every turn (fresh subprocess = fresh init event). |
 
 ---
 
 ## Next Actions
 
-1. **Phase 3 — auto-compact (IMPL-GUIDE Step 15)** — After each `turn_complete`, if `context_pct > 0.75`, dispatch `/compact` via a separate `claude -p --resume` spawn. Emit `compact_started` / `compact_done` to webview. Wire into `SessionManager.prompt()`.
-2. **Phase 3 — folder-delete watcher (Step 16)** — `vscode.workspace.createFileSystemWatcher` per project; on root-delete event, remove from store, dispose session + OutputChannel, show toast.
-3. **Phase 3 — MCP config UI (Steps 17-18)** — `src/mcp/config-surface.ts` shelling out to `claude mcp {list,add-json,remove}`; settings panel inside the shared chat panel webview (collapsible section above transcript).
-4. **Phase 4 — polish + packaging (Steps 19-22)** — tool-allowlist setting wired into `buildArgs`; `--max-budget-usd` from `agentDesktop.budget.perTurnUsd`; resume-failure modal; `vsce package` + all 6 SPEC success criteria.
+1. **Interrupt button** — Wire the existing `interrupt` protocol message to a "Stop" button in the webview. On click, kill the in-flight `claude` subprocess (`child.kill()`), send `turn_complete` with current text, re-enable input.
+2. **Phase 3 — auto-compact (IMPL-GUIDE Step 15)** — After each `turn_complete`, if `context_pct > 0.75`, dispatch `/compact` via a separate `claude -p --resume` spawn. Emit `compact_started` / `compact_done` to webview. Wire into `SessionManager.prompt()`.
+3. **Phase 3 — folder-delete watcher (Step 16)** — `vscode.workspace.createFileSystemWatcher` per project; on root-delete event, remove from store, dispose session + OutputChannel, show toast.
+4. **Phase 3 — MCP config UI (Steps 17-18)** — `src/mcp/config-surface.ts` shelling out to `claude mcp {list,add-json,remove}`; settings panel inside the shared chat panel webview (collapsible section above transcript).
+5. **Phase 4 — polish + packaging (Steps 19-22)** — tool-allowlist setting wired into `buildArgs`; `--max-budget-usd` from `agentDesktop.budget.perTurnUsd`; resume-failure modal; `vsce package` + all 6 SPEC success criteria.
 
 **Deferred:**
 - Windows support (macOS + Linux first)
@@ -136,6 +145,17 @@
 
 18. **Session 18: UX polish — discoverable command entry points** (2026-05-15) — Added codicon icons to commands, `menus.view/title` buttons in Projects sidebar, `viewsWelcome` content with clickable links.
 
+21. **Session 21: Phase 3 Features A, B, C + directory access** (2026-05-22 – 2026-05-26) —
+    - **`--add-dir` support**: `buildArgs` / `spawnClaude` accept `additionalDirs`. `ProjectStoreEntry` gains `allowedDirs?: string[]`. Adding a dir generates a new `sessionId` + clears `lastResumeAt` so the fresh spawn picks up `--add-dir` from the start.
+    - **`agentDesktop.addDirectory`**: right-click tree command; confirmation modal warns that the current conversation will be cleared; tears down in-memory session and recreates with new allowed dirs.
+    - **`agentDesktop.removeProject`**: right-click tree command; confirmation modal; disposes session + OutputChannel; resets panel if active.
+    - **Smart Grant Access banner**: `session-manager` detects blocked-access responses via keyword heuristic and sends `grant_access_prompt`; webview renders a yellow warning banner with a one-click "Grant Directory Access" button that triggers `handleGrantAccess` in `extension.ts`.
+    - **Feature A — status display**: `system.status` events forwarded as `status_update`; webview shows "Thinking…" while Claude is requesting.
+    - **Feature B — tool-use visibility**: `type:"assistant"` JSONL events parsed for `tool_use` content blocks; sent as `tool_uses` to webview; rendered as collapsible `<details>/<summary>` cards (gear icon + tool name; expand to see JSON input) inserted above streaming text.
+    - **Feature C — slash-command autocomplete**: `system.init` `slash_commands` + `skills` merged and sent as `commands_available`; webview shows filtered dropdown above the input when user types `/`; arrow-key navigation, Enter/Tab to select, Esc to dismiss, click also works; list refreshes every turn.
+    - **90 tests passing** (3 new tests across `claude-spawn` and `session-manager`).
+    - **Committed and pushed**: `4f9c43e` on `main`.
+
 20. **Session 20: UX polish — layout, project click, markdown preview** (2026-05-21) —
     - **Remove Project**: right-click project node in sidebar → "Remove Project" modal; disposes session + OutputChannel, removes from store, resets panel if that project was active.
     - **Three-column layout**: `SharedChatPanel.show()` now calls `workbench.action.setEditorLayout` (two columns, 60/40) before creating the panel, wrapped in try/catch so panel creation always proceeds even if the layout command fails.
@@ -175,4 +195,4 @@
 
 ---
 
-**Last Updated:** 2026-05-21
+**Last Updated:** 2026-05-26
