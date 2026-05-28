@@ -2,7 +2,7 @@
   "name": "agent-desktop",
   "displayName": "Agent Desktop",
   "description": "Host multiple Claude Code projects in parallel, each authoring a set of .md files into a finished technical document.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "agent-desktop-local",
   "license": "MIT",
   "private": true,
