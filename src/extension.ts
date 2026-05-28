@@ -1,3 +1,4 @@
+import * as path from "node:path";
 import * as vscode from "vscode";
 import { checkClaudeAvailable } from "./activation-check";
 import { spawnClaude } from "./claude-spawn";
@@ -232,7 +233,13 @@ export function activate(context: vscode.ExtensionContext): void {
 
   /** Start a filesystem watcher for each known project root. */
   function watchProjectFolder(folderPath: string): vscode.FileSystemWatcher {
-    const pattern = new vscode.RelativePattern(folderPath, ".");
+    // Watch the *parent* directory for an entry matching the folder name.
+    // Watching folderPath itself with "." only catches files inside it —
+    // it does not fire when the folder is deleted.
+    const pattern = new vscode.RelativePattern(
+      vscode.Uri.file(path.dirname(folderPath)),
+      path.basename(folderPath),
+    );
     const watcher = vscode.workspace.createFileSystemWatcher(pattern, true, true, false);
     watcher.onDidDelete(async () => {
       if (!store.get(folderPath)) return; // already removed
