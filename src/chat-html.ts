@@ -66,6 +66,7 @@ export function getChatHtml(
   .markdown code { font-family: var(--vscode-editor-font-family); font-size: 0.9em; background: var(--vscode-textCodeBlock-background); padding: 1px 4px; border-radius: 3px; }
   .markdown pre { margin: 0 0 12px 0; border-radius: 4px; overflow-x: auto; }
   .markdown pre code { padding: 0; background: transparent; }
+  .markdown pre code.hljs { padding: 12px; background: var(--vscode-textCodeBlock-background, #1e1e1e); }
   .markdown a { color: var(--vscode-textLink-foreground); }
   .markdown a:hover { color: var(--vscode-textLink-activeForeground); }
   .markdown table { border-collapse: collapse; margin-bottom: 10px; width: 100%; }

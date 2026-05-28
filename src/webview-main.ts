@@ -14,6 +14,23 @@ import { marked } from "marked";
 import hljs from "highlight.js";
 import type { ToWebview, FromWebview, McpServerInfo } from "./webview-protocol";
 
+// Wire hljs into marked: highlight code blocks at render time rather than as a
+// DOM post-processing step, which is unreliable on detached elements.
+marked.use({
+  renderer: {
+    code(token) {
+      const text = (token as { text: string }).text;
+      const lang = (token as { lang?: string }).lang ?? "";
+      const validLang = lang && hljs.getLanguage(lang) ? lang : undefined;
+      const highlighted = validLang
+        ? hljs.highlight(text, { language: validLang }).value
+        : hljs.highlightAuto(text).value;
+      const cls = validLang ? `hljs language-${validLang}` : "hljs";
+      return `<pre><code class="${cls}">${highlighted}</code></pre>\n`;
+    },
+  },
+});
+
 // acquireVsCodeApi is injected by VS Code into every WebviewPanel at runtime.
 declare function acquireVsCodeApi(): {
   postMessage(msg: FromWebview): void;
@@ -162,12 +179,6 @@ function renderMarkdown(text: string): string {
   return marked.parse(text) as string;
 }
 
-function applyHighlighting(container: HTMLElement): void {
-  container.querySelectorAll("pre code").forEach((el) => {
-    hljs.highlightElement(el as HTMLElement);
-  });
-}
-
 function scrollToBottom(): void {
   transcriptEl.scrollTop = transcriptEl.scrollHeight;
 }
@@ -202,7 +213,6 @@ function buildAssistantDiv(text: string, badge?: string): HTMLElement {
   const content = document.createElement("div");
   content.className = "content markdown";
   content.innerHTML = renderMarkdown(text);
-  applyHighlighting(content);
   div.appendChild(label);
   div.appendChild(content);
   if (badge) {
@@ -297,7 +307,6 @@ window.addEventListener("message", (e: MessageEvent) => {
         const content = document.createElement("div");
         content.className = "content markdown";
         content.innerHTML = renderMarkdown(activeAssistantText);
-        applyHighlighting(content);
 
         const pre = activeAssistantEl.querySelector("pre.stream-text");
         if (pre) activeAssistantEl.replaceChild(content, pre);
