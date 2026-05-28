@@ -66,7 +66,7 @@ export function getChatHtml(
   .markdown code { font-family: var(--vscode-editor-font-family); font-size: 0.9em; background: var(--vscode-textCodeBlock-background); padding: 1px 4px; border-radius: 3px; }
   .markdown pre { margin: 0 0 12px 0; border-radius: 4px; overflow-x: auto; }
   .markdown pre code { padding: 0; background: transparent; }
-  .markdown pre code.hljs { padding: 12px; background: var(--vscode-textCodeBlock-background, #1e1e1e); }
+  .markdown pre code.hljs { padding: 12px; background: var(--vscode-textCodeBlock-background); }
   .markdown a { color: var(--vscode-textLink-foreground); }
   .markdown a:hover { color: var(--vscode-textLink-activeForeground); }
   .markdown table { border-collapse: collapse; margin-bottom: 10px; width: 100%; }
@@ -121,18 +121,32 @@ export function getChatHtml(
   #mcp-json-input { flex: 1; min-width: 0; }
   .mcp-add-btn { padding: 3px 8px; font-size: 11px; flex-shrink: 0; }
 
-  /* ── Syntax highlighting (VS Code dark+ compatible) ──────── */
-  .hljs { display: block; overflow-x: auto; padding: 12px; background: var(--vscode-textCodeBlock-background, #1e1e1e); color: var(--vscode-editor-foreground, #d4d4d4); border-radius: 4px; }
-  .hljs-keyword,.hljs-selector-tag,.hljs-built_in,.hljs-name,.hljs-tag { color: #569cd6; }
-  .hljs-string,.hljs-title,.hljs-section,.hljs-attribute,.hljs-literal,.hljs-template-tag,.hljs-template-variable,.hljs-type,.hljs-addition { color: #ce9178; }
-  .hljs-string { color: #ce9178; }
-  .hljs-comment,.hljs-quote,.hljs-deletion,.hljs-meta { color: #6a9955; }
-  .hljs-number,.hljs-regexp,.hljs-variable,.hljs-template-variable,.hljs-link,.hljs-selector-attr,.hljs-selector-pseudo { color: #b5cea8; }
-  .hljs-doctag,.hljs-title.function_ { color: #dcdcaa; }
-  .hljs-title.class_,.hljs-class .hljs-title { color: #4ec9b0; }
-  .hljs-symbol,.hljs-bullet,.hljs-subst,.hljs-meta .hljs-keyword { color: #9cdcfe; }
+  /* ── Syntax highlighting ─────────────────────────────────── */
+  /* Base layout/background adapts via VS Code CSS variables */
+  .hljs { display: block; overflow-x: auto; padding: 12px; background: var(--vscode-textCodeBlock-background); color: var(--vscode-editor-foreground); border-radius: 4px; }
   .hljs-emphasis { font-style: italic; }
   .hljs-strong { font-weight: bold; }
+  /* Dark + High-Contrast Dark → VS Code Dark+ palette */
+  .vscode-dark .hljs-keyword,.vscode-dark .hljs-selector-tag,.vscode-dark .hljs-built_in,.vscode-dark .hljs-name,.vscode-dark .hljs-tag,
+  .vscode-high-contrast .hljs-keyword,.vscode-high-contrast .hljs-selector-tag,.vscode-high-contrast .hljs-built_in,.vscode-high-contrast .hljs-name,.vscode-high-contrast .hljs-tag { color: #569cd6; }
+  .vscode-dark .hljs-string,.vscode-dark .hljs-title,.vscode-dark .hljs-section,.vscode-dark .hljs-attribute,.vscode-dark .hljs-literal,.vscode-dark .hljs-template-tag,.vscode-dark .hljs-template-variable,.vscode-dark .hljs-type,.vscode-dark .hljs-addition,
+  .vscode-high-contrast .hljs-string,.vscode-high-contrast .hljs-title,.vscode-high-contrast .hljs-section,.vscode-high-contrast .hljs-attribute,.vscode-high-contrast .hljs-literal,.vscode-high-contrast .hljs-template-tag,.vscode-high-contrast .hljs-template-variable,.vscode-high-contrast .hljs-type,.vscode-high-contrast .hljs-addition { color: #ce9178; }
+  .vscode-dark .hljs-comment,.vscode-dark .hljs-quote,.vscode-dark .hljs-deletion,.vscode-dark .hljs-meta,
+  .vscode-high-contrast .hljs-comment,.vscode-high-contrast .hljs-quote,.vscode-high-contrast .hljs-deletion,.vscode-high-contrast .hljs-meta { color: #6a9955; }
+  .vscode-dark .hljs-number,.vscode-dark .hljs-regexp,.vscode-dark .hljs-variable,.vscode-dark .hljs-template-variable,.vscode-dark .hljs-link,.vscode-dark .hljs-selector-attr,.vscode-dark .hljs-selector-pseudo,
+  .vscode-high-contrast .hljs-number,.vscode-high-contrast .hljs-regexp,.vscode-high-contrast .hljs-variable,.vscode-high-contrast .hljs-template-variable,.vscode-high-contrast .hljs-link,.vscode-high-contrast .hljs-selector-attr,.vscode-high-contrast .hljs-selector-pseudo { color: #b5cea8; }
+  .vscode-dark .hljs-doctag,.vscode-dark .hljs-title.function_,.vscode-high-contrast .hljs-doctag,.vscode-high-contrast .hljs-title.function_ { color: #dcdcaa; }
+  .vscode-dark .hljs-title.class_,.vscode-dark .hljs-class .hljs-title,.vscode-high-contrast .hljs-title.class_,.vscode-high-contrast .hljs-class .hljs-title { color: #4ec9b0; }
+  .vscode-dark .hljs-symbol,.vscode-dark .hljs-bullet,.vscode-dark .hljs-subst,.vscode-dark .hljs-meta .hljs-keyword,
+  .vscode-high-contrast .hljs-symbol,.vscode-high-contrast .hljs-bullet,.vscode-high-contrast .hljs-subst,.vscode-high-contrast .hljs-meta .hljs-keyword { color: #9cdcfe; }
+  /* Light → VS Code Light+ palette */
+  .vscode-light .hljs-keyword,.vscode-light .hljs-selector-tag,.vscode-light .hljs-built_in,.vscode-light .hljs-name,.vscode-light .hljs-tag { color: #0000ff; }
+  .vscode-light .hljs-string,.vscode-light .hljs-title,.vscode-light .hljs-section,.vscode-light .hljs-attribute,.vscode-light .hljs-literal,.vscode-light .hljs-template-tag,.vscode-light .hljs-template-variable,.vscode-light .hljs-type,.vscode-light .hljs-addition { color: #a31515; }
+  .vscode-light .hljs-comment,.vscode-light .hljs-quote,.vscode-light .hljs-deletion,.vscode-light .hljs-meta { color: #008000; }
+  .vscode-light .hljs-number,.vscode-light .hljs-regexp,.vscode-light .hljs-variable,.vscode-light .hljs-template-variable,.vscode-light .hljs-link,.vscode-light .hljs-selector-attr,.vscode-light .hljs-selector-pseudo { color: #098658; }
+  .vscode-light .hljs-doctag,.vscode-light .hljs-title.function_ { color: #795e26; }
+  .vscode-light .hljs-title.class_,.vscode-light .hljs-class .hljs-title { color: #267f99; }
+  .vscode-light .hljs-symbol,.vscode-light .hljs-bullet,.vscode-light .hljs-subst,.vscode-light .hljs-meta .hljs-keyword { color: #001080; }
 </style>
 </head>
 <body>
