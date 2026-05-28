@@ -18,7 +18,8 @@ export type ToWebview =
   | { kind: "status_update"; status: string | null }
   | { kind: "grant_access_prompt" }
   | { kind: "tool_uses"; tools: ToolUseInfo[] }
-  | { kind: "commands_available"; commands: string[] };
+  | { kind: "commands_available"; commands: string[] }
+  | { kind: "model_info"; model: string };
 
 /** A single tool call within an assistant turn. */
 export type ToolUseInfo = {

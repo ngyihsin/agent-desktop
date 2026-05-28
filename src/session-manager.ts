@@ -172,10 +172,13 @@ export class SessionManager {
         this.logger.appendLine(JSON.stringify(ev));
 
         if (ev.type === "system" && ev.subtype === "init") {
-          const init = ev as { slash_commands?: string[]; skills?: string[] };
+          const init = ev as { slash_commands?: string[]; skills?: string[]; model?: string };
           const commands = [...new Set([...(init.slash_commands ?? []), ...(init.skills ?? [])])];
           if (commands.length > 0) {
             this.chat.send({ kind: "commands_available", commands });
+          }
+          if (typeof init.model === "string") {
+            this.chat.send({ kind: "model_info", model: init.model });
           }
           continue;
         }

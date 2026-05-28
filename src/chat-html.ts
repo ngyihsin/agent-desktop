@@ -25,7 +25,8 @@ export function getChatHtml(
 <style>
   /* ── Layout ──────────────────────────────────────────────── */
   body { font-family: var(--vscode-font-family); color: var(--vscode-foreground); background: var(--vscode-editor-background); margin: 0; padding: 16px; display: flex; flex-direction: column; height: 100vh; box-sizing: border-box; }
-  h1 { font-size: 13px; font-weight: 600; margin: 0 0 12px 0; color: var(--vscode-descriptionForeground); }
+  h1 { font-size: 13px; font-weight: 600; margin: 0 0 12px 0; color: var(--vscode-descriptionForeground); display: flex; align-items: center; gap: 8px; }
+  #model-badge { font-size: 10px; font-weight: 500; padding: 1px 6px; border-radius: 10px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); opacity: 0.85; }
   #transcript { flex: 1; overflow-y: auto; border: 1px solid var(--vscode-panel-border); padding: 12px; margin-bottom: 8px; font-size: 13px; line-height: 1.5; }
   #status { font-size: 11px; color: var(--vscode-descriptionForeground); margin-bottom: 8px; min-height: 16px; }
   #prompt-form { display: flex; gap: 8px; align-items: flex-end; }
@@ -113,7 +114,7 @@ export function getChatHtml(
 </style>
 </head>
 <body>
-<h1>${safeName}</h1>
+<h1>${safeName}<span id="model-badge"></span></h1>
 <div id="transcript" aria-live="polite"></div>
 <div id="status"></div>
 <form id="prompt-form">

@@ -29,6 +29,7 @@ const inputEl = document.getElementById("input") as HTMLTextAreaElement;
 const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const autocompleteEl = document.getElementById("autocomplete") as HTMLDivElement;
+const modelBadgeEl = document.getElementById("model-badge") as HTMLSpanElement;
 
 // Tracks the div for the assistant turn currently streaming.
 let activeAssistantEl: HTMLElement | null = null;
@@ -88,6 +89,16 @@ function selectAutocompleteItem(): boolean {
 }
 
 // --- Helpers ---
+
+// "claude-sonnet-4-6" → "Sonnet 4.6", "claude-opus-4-7" → "Opus 4.7"
+function formatModel(model: string): string {
+  const bare = model.replace(/^claude-/i, "");
+  const parts = bare.split("-");
+  if (parts.length === 0) return model;
+  const name = parts[0].charAt(0).toUpperCase() + parts[0].slice(1);
+  const version = parts.slice(1).join(".");
+  return version ? `${name} ${version}` : name;
+}
 
 function escapeHtml(s: string): string {
   return s
@@ -313,6 +324,11 @@ window.addEventListener("message", (e: MessageEvent) => {
 
     case "commands_available": {
       availableCommands = msg.commands;
+      break;
+    }
+
+    case "model_info": {
+      modelBadgeEl.textContent = formatModel(msg.model);
       break;
     }
 
