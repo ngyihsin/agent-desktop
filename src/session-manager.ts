@@ -246,6 +246,60 @@ export class SessionManager {
     if (isBlockedAccessResponse(assistantText)) {
       this.chat.send({ kind: "grant_access_prompt" });
     }
+
+    if (contextPct >= SessionManager.COMPACT_THRESHOLD) {
+      await this.runCompact();
+    }
+  }
+
+  private static readonly COMPACT_THRESHOLD = 0.75;
+
+  private async runCompact(): Promise<void> {
+    const entry = this.store.get(this.folderPath);
+    if (!entry) return;
+
+    this.chat.send({ kind: "compact_started" });
+
+    const child = this.spawner("resume", entry.sessionId, this.folderPath, entry.allowedDirs);
+    if (!child.stdin || !child.stdout) {
+      this.chat.send({ kind: "compact_done", new_context_pct: 0 });
+      return;
+    }
+
+    child.stderr?.on("data", (chunk: unknown) => {
+      const s = typeof chunk === "string" ? chunk : (chunk as Buffer).toString("utf8");
+      this.logger.append(s);
+    });
+
+    child.stdin.write("/compact\n");
+    child.stdin.end();
+
+    let newContextPct = 0;
+
+    this.activeChild = child;
+    try {
+      for await (const ev of streamJsonl(child.stdout)) {
+        this.logger.appendLine(`[compact] ${JSON.stringify(ev)}`);
+        if (ev.type === "result") {
+          newContextPct = computeContextPct(ev as unknown as ResultEventLike);
+        }
+      }
+    } catch {
+      // compact failure is non-fatal — send done with whatever we have
+    } finally {
+      this.activeChild = null;
+    }
+
+    await new Promise<void>((resolve) => {
+      if (child.exitCode != null) return resolve();
+      child.on("exit", () => resolve());
+    });
+
+    await this.store.update(this.folderPath, {
+      lastResumeAt: new Date().toISOString(),
+    });
+
+    this.chat.send({ kind: "compact_done", new_context_pct: newContextPct });
   }
 }
 

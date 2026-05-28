@@ -91,8 +91,14 @@ describe("CLAUDE_SPAWN_CONFIG.spawnOptions", () => {
     expect(CLAUDE_SPAWN_CONFIG.spawnOptions("/x").windowsHide).toBe(true);
   });
 
-  it("passes through process.env (env inheritance is intentional in v1)", () => {
+  it("inherits process.env when no extraEnv supplied", () => {
     // DESIGN Decision 2 alternative ("clearEnv") is deferred; v1 inherits.
-    expect(CLAUDE_SPAWN_CONFIG.spawnOptions("/x").env).toBe(process.env);
+    expect(CLAUDE_SPAWN_CONFIG.spawnOptions("/x").env).toEqual(process.env);
+  });
+
+  it("merges extraEnv on top of process.env", () => {
+    const env = CLAUDE_SPAWN_CONFIG.spawnOptions("/x", { ANTHROPIC_API_KEY: "test-key" }).env as Record<string, string>;
+    expect(env["ANTHROPIC_API_KEY"]).toBe("test-key");
+    expect(env["PATH"]).toBe(process.env["PATH"]);
   });
 });

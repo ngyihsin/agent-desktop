@@ -73,6 +73,17 @@
         "title": "Add Directory Access",
         "category": "Agent Desktop",
         "icon": "$(folder-library)"
+      },
+      {
+        "command": "agentDesktop.setApiKey",
+        "title": "Set Anthropic API Key",
+        "category": "Agent Desktop",
+        "icon": "$(key)"
+      },
+      {
+        "command": "agentDesktop.clearApiKey",
+        "title": "Clear Anthropic API Key",
+        "category": "Agent Desktop"
       }
     ],
     "viewsContainers": {
@@ -142,6 +153,16 @@
           "group": "agentDesktop@2"
         }
       ]
+    },
+    "configuration": {
+      "title": "Agent Desktop",
+      "properties": {
+        "agentDesktop.anthropic.baseUrl": {
+          "type": "string",
+          "default": "",
+          "markdownDescription": "Override the Anthropic API base URL. Use this for a proxy, AWS Bedrock, or Google Vertex gateway. Leave empty to use the Claude Code default."
+        }
+      }
     },
     "viewsWelcome": [
       {

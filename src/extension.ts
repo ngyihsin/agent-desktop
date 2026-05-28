@@ -1,5 +1,6 @@
 import * as vscode from "vscode";
 import { checkClaudeAvailable } from "./activation-check";
+import { spawnClaude } from "./claude-spawn";
 import { FRESH_PROJECT_SEED } from "./commands/open-chat";
 import { runNewProjectCommand } from "./commands/new-project";
 import { runOpenProjectCommand } from "./commands/open-project";
@@ -7,7 +8,7 @@ import { runOpenRecentCommand } from "./commands/open-recent";
 import { runQuoteInChatCommand } from "./commands/quote-in-chat";
 import { ProjectStore, type ProjectStoreEntry } from "./project-store";
 import { ProjectsTreeProvider, type TreeElement } from "./projects-tree-provider";
-import { SessionManager } from "./session-manager";
+import { SessionManager, type Spawner } from "./session-manager";
 import { SharedChatPanel } from "./shared-chat-panel";
 import { syncCodeWorkspace } from "./workspace-manager";
 
@@ -102,8 +103,19 @@ export function activate(context: vscode.ExtensionContext): void {
     if (freshEntry) openProject(projectPath, freshEntry);
   }
 
+  async function getAnthropicEnv(): Promise<Record<string, string>> {
+    const env: Record<string, string> = {};
+    const apiKey = await context.secrets.get("agentDesktop.apiKey");
+    if (apiKey) env["ANTHROPIC_API_KEY"] = apiKey;
+    const baseUrl = vscode.workspace
+      .getConfiguration("agentDesktop")
+      .get<string>("anthropic.baseUrl");
+    if (baseUrl?.trim()) env["ANTHROPIC_BASE_URL"] = baseUrl.trim();
+    return env;
+  }
+
   // Open (or switch to) a project in the shared panel.
-  function openProject(folderPath: string, entry: ProjectStoreEntry): void {
+  async function openProject(folderPath: string, entry: ProjectStoreEntry): Promise<void> {
     const isNew = !sessions.has(folderPath);
     if (isNew) {
       const oc = vscode.window.createOutputChannel(
@@ -111,26 +123,27 @@ export function activate(context: vscode.ExtensionContext): void {
       );
       outputChannels.set(folderPath, oc);
       const sender = sharedPanel.senderFor(folderPath);
-      sessions.set(folderPath, new SessionManager(folderPath, store, sender, oc));
+      const extraEnv = await getAnthropicEnv();
+      const spawner: Spawner = (mode, sessionId, cwd, dirs) =>
+        spawnClaude(mode, sessionId, cwd, dirs, extraEnv);
+      sessions.set(folderPath, new SessionManager(folderPath, store, sender, oc, spawner));
     }
 
-    sharedPanel
-      .show(context.extensionUri)
-      .then(() => {
-        sharedPanel.switchToProject(
-          folderPath,
-          entry.displayName,
-          sessions.get(folderPath)!.getTranscript(),
-        );
-        if (isNew && !entry.lastResumeAt) {
-          void sessions.get(folderPath)!.prompt(FRESH_PROJECT_SEED);
-        }
-      })
-      .catch((err: unknown) => {
-        void vscode.window.showErrorMessage(
-          `Agent Desktop: failed to open chat — ${(err as Error).message ?? String(err)}`,
-        );
-      });
+    try {
+      await sharedPanel.show(context.extensionUri);
+      sharedPanel.switchToProject(
+        folderPath,
+        entry.displayName,
+        sessions.get(folderPath)!.getTranscript(),
+      );
+      if (isNew && !entry.lastResumeAt) {
+        void sessions.get(folderPath)!.prompt(FRESH_PROJECT_SEED);
+      }
+    } catch (err: unknown) {
+      void vscode.window.showErrorMessage(
+        `Agent Desktop: failed to open chat — ${(err as Error).message ?? String(err)}`,
+      );
+    }
   }
 
   const treeProvider = new ProjectsTreeProvider(store);
@@ -329,6 +342,26 @@ export function activate(context: vscode.ExtensionContext): void {
         await afterProjectListChange();
       },
     ),
+    vscode.commands.registerCommand("agentDesktop.setApiKey", async () => {
+      const key = await vscode.window.showInputBox({
+        title: "Agent Desktop: Set Anthropic API Key",
+        prompt: "Paste your Anthropic API key (stored in VS Code SecretStorage, not settings.json)",
+        placeHolder: "sk-ant-...",
+        password: true,
+        validateInput: (v) => (v.trim() ? null : "Key cannot be empty"),
+      });
+      if (!key) return;
+      await context.secrets.store("agentDesktop.apiKey", key.trim());
+      await vscode.window.showInformationMessage(
+        "Agent Desktop: API key saved. New sessions will use it.",
+      );
+    }),
+    vscode.commands.registerCommand("agentDesktop.clearApiKey", async () => {
+      await context.secrets.delete("agentDesktop.apiKey");
+      await vscode.window.showInformationMessage(
+        "Agent Desktop: API key cleared. Sessions will fall back to Claude Code's own auth.",
+      );
+    }),
   );
 
   void runActivationCheck();

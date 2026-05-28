@@ -14,7 +14,7 @@ export type ClaudeSpawnConfig = {
   readonly command: string;
   readonly freshArgs: readonly string[];
   readonly resumeArgsTemplate: readonly string[]; // contains "{sessionId}" placeholder
-  readonly spawnOptions: (cwd: string) => SpawnOptions;
+  readonly spawnOptions: (cwd: string, extraEnv?: Record<string, string>) => SpawnOptions;
 };
 
 /**
@@ -46,10 +46,10 @@ export const CLAUDE_SPAWN_CONFIG: ClaudeSpawnConfig = {
     "--setting-sources", "user",
     "--resume", "{sessionId}",
   ],
-  spawnOptions: (cwd) => ({
+  spawnOptions: (cwd, extraEnv = {}) => ({
     cwd,
     stdio: ["pipe", "pipe", "pipe"],
-    env: process.env,
+    env: { ...process.env, ...extraEnv },
     windowsHide: true,
   }),
 };
@@ -90,10 +90,11 @@ export function spawnClaude(
   sessionId: string,
   cwd: string,
   additionalDirs: readonly string[] = [],
+  extraEnv: Record<string, string> = {},
 ): ChildProcess {
   return spawn(
     CLAUDE_SPAWN_CONFIG.command,
     buildArgs(mode, sessionId, additionalDirs),
-    CLAUDE_SPAWN_CONFIG.spawnOptions(cwd),
+    CLAUDE_SPAWN_CONFIG.spawnOptions(cwd, extraEnv),
   );
 }
