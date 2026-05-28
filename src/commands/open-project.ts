@@ -7,7 +7,7 @@ import type { OpenProjectFn } from "./open-chat";
 
 export async function runOpenProjectCommand(
   store: ProjectStore,
-  onStored: () => void,
+  onStored: (folderPath: string) => void,
   openProject: OpenProjectFn,
 ): Promise<void> {
   const uris = await vscode.window.showOpenDialog({
@@ -41,7 +41,7 @@ export async function runOpenProjectCommand(
       lastResumeAt: null,
     };
     await store.set(folderPath, entry);
-    onStored();
+    onStored(folderPath);
   }
 
   openProject(folderPath, entry);

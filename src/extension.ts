@@ -203,15 +203,55 @@ export function activate(context: vscode.ExtensionContext): void {
     ),
   );
 
-  function onProjectStored(): void {
+  function onProjectStored(folderPath?: string): void {
     treeProvider.refresh();
     updateProjectsContext(store);
+    if (folderPath && !folderWatchers.has(folderPath)) {
+      const w = watchProjectFolder(folderPath);
+      folderWatchers.set(folderPath, w);
+      context.subscriptions.push(w);
+    }
   }
 
   async function afterProjectListChange(): Promise<void> {
     treeProvider.refresh();
     updateProjectsContext(store);
     await syncCodeWorkspace(store.list().map((k) => k.folderPath));
+  }
+
+  /** Dispose in-memory state and remove from store. Does not touch disk. */
+  async function teardownProject(folderPath: string): Promise<void> {
+    sessions.delete(folderPath);
+    const oc = outputChannels.get(folderPath);
+    oc?.dispose();
+    outputChannels.delete(folderPath);
+    if (sharedPanel.activeProjectPath === folderPath) sharedPanel.reset();
+    await store.remove(folderPath);
+    await afterProjectListChange();
+  }
+
+  /** Start a filesystem watcher for each known project root. */
+  function watchProjectFolder(folderPath: string): vscode.FileSystemWatcher {
+    const pattern = new vscode.RelativePattern(folderPath, ".");
+    const watcher = vscode.workspace.createFileSystemWatcher(pattern, true, true, false);
+    watcher.onDidDelete(async () => {
+      if (!store.get(folderPath)) return; // already removed
+      const entry = store.get(folderPath);
+      void vscode.window.showWarningMessage(
+        `Agent Desktop: project folder "${entry?.displayName ?? folderPath}" was deleted. Removing from sidebar.`,
+      );
+      await teardownProject(folderPath);
+      watcher.dispose();
+    });
+    return watcher;
+  }
+
+  // Watch all currently known projects.
+  const folderWatchers = new Map<string, vscode.FileSystemWatcher>();
+  for (const { folderPath } of store.list()) {
+    const w = watchProjectFolder(folderPath);
+    folderWatchers.set(folderPath, w);
+    context.subscriptions.push(w);
   }
 
   context.subscriptions.push(
@@ -325,21 +365,9 @@ export function activate(context: vscode.ExtensionContext): void {
         );
         if (choice !== "Remove") return;
 
-        // Dispose runtime state for this project.
-        sessions.delete(folderPath);
-        const oc = outputChannels.get(folderPath);
-        oc?.dispose();
-        outputChannels.delete(folderPath);
-
-        // Remove from persistent store.
-        await store.remove(folderPath);
-
-        // If this was the active project, reset the panel.
-        if (sharedPanel.activeProjectPath === folderPath) {
-          sharedPanel.reset();
-        }
-
-        await afterProjectListChange();
+        folderWatchers.get(folderPath)?.dispose();
+        folderWatchers.delete(folderPath);
+        await teardownProject(folderPath);
       },
     ),
     vscode.commands.registerCommand("agentDesktop.setApiKey", async () => {

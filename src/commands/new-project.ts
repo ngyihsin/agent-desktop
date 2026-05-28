@@ -34,7 +34,7 @@ async function checkTargetIsAvailable(targetPath: string): Promise<string | null
 export async function runNewProjectCommand(
   context: vscode.ExtensionContext,
   store: ProjectStore,
-  onStored: () => void,
+  onStored: (folderPath: string) => void,
   openProject: OpenProjectFn,
 ): Promise<void> {
   const name = await vscode.window.showInputBox({
@@ -77,7 +77,7 @@ export async function runNewProjectCommand(
     lastResumeAt: null,
   };
   await store.set(targetPath, entry);
-  onStored();
+  onStored(targetPath);
 
   await vscode.window.showInformationMessage(
     `Agent Desktop: project "${entry.displayName}" created at ${targetPath} ` +
