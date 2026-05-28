@@ -2,6 +2,7 @@ import * as path from "node:path";
 import * as vscode from "vscode";
 import { checkClaudeAvailable } from "./activation-check";
 import { spawnClaude } from "./claude-spawn";
+import { addMcpServer, readProjectMcpServers, removeMcpServer } from "./mcp";
 import { FRESH_PROJECT_SEED } from "./commands/open-chat";
 import { runNewProjectCommand } from "./commands/new-project";
 import { runOpenProjectCommand } from "./commands/open-project";
@@ -42,11 +43,42 @@ export function activate(context: vscode.ExtensionContext): void {
   void syncCodeWorkspace(known.map((k) => k.folderPath));
   updateProjectsContext(store);
 
+  async function sendMcpServers(folderPath: string): Promise<void> {
+    const servers = await readProjectMcpServers(folderPath);
+    sharedPanel.send({ kind: "mcp_servers", servers });
+  }
+
   // Route webview messages to the correct session.
   sharedPanel.onMessage((projectPath, msg) => {
     const session = sessions.get(projectPath);
     if (msg.kind === "grant_access") {
       void handleGrantAccess(projectPath);
+      return;
+    }
+    if (msg.kind === "mcp_add") {
+      void (async () => {
+        try {
+          await addMcpServer(msg.name, msg.json, projectPath);
+        } catch (err) {
+          void vscode.window.showErrorMessage(
+            `Agent Desktop: MCP add failed — ${(err as Error).message ?? String(err)}`,
+          );
+        }
+        await sendMcpServers(projectPath);
+      })();
+      return;
+    }
+    if (msg.kind === "mcp_remove") {
+      void (async () => {
+        try {
+          await removeMcpServer(msg.name, projectPath);
+        } catch (err) {
+          void vscode.window.showErrorMessage(
+            `Agent Desktop: MCP remove failed — ${(err as Error).message ?? String(err)}`,
+          );
+        }
+        await sendMcpServers(projectPath);
+      })();
       return;
     }
     if (!session) return;
@@ -137,6 +169,7 @@ export function activate(context: vscode.ExtensionContext): void {
         entry.displayName,
         sessions.get(folderPath)!.getTranscript(),
       );
+      void sendMcpServers(folderPath);
       if (isNew && !entry.lastResumeAt) {
         void sessions.get(folderPath)!.prompt(FRESH_PROJECT_SEED);
       }

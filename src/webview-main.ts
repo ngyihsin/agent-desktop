@@ -12,7 +12,7 @@
 
 import { marked } from "marked";
 import hljs from "highlight.js";
-import type { ToWebview, FromWebview } from "./webview-protocol";
+import type { ToWebview, FromWebview, McpServerInfo } from "./webview-protocol";
 
 // acquireVsCodeApi is injected by VS Code into every WebviewPanel at runtime.
 declare function acquireVsCodeApi(): {
@@ -30,6 +30,11 @@ const submitBtn = document.getElementById("submit-btn") as HTMLButtonElement;
 const stopBtn = document.getElementById("stop-btn") as HTMLButtonElement;
 const autocompleteEl = document.getElementById("autocomplete") as HTMLDivElement;
 const modelBadgeEl = document.getElementById("model-badge") as HTMLSpanElement;
+const mcpCountEl = document.getElementById("mcp-count") as HTMLSpanElement;
+const mcpListEl = document.getElementById("mcp-list") as HTMLDivElement;
+const mcpNameInput = document.getElementById("mcp-name-input") as HTMLInputElement;
+const mcpJsonInput = document.getElementById("mcp-json-input") as HTMLInputElement;
+const mcpAddBtn = document.getElementById("mcp-add-btn") as HTMLButtonElement;
 
 // Tracks the div for the assistant turn currently streaming.
 let activeAssistantEl: HTMLElement | null = null;
@@ -87,6 +92,51 @@ function selectAutocompleteItem(): boolean {
   hideAutocomplete();
   return true;
 }
+
+// --- MCP panel ---
+
+function renderMcpServers(servers: McpServerInfo[]): void {
+  mcpCountEl.textContent = String(servers.length);
+  mcpListEl.innerHTML = "";
+  if (servers.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "mcp-empty";
+    empty.textContent = "No MCP servers configured.";
+    mcpListEl.appendChild(empty);
+    return;
+  }
+  for (const server of servers) {
+    const item = document.createElement("div");
+    item.className = "mcp-item";
+    const nameEl = document.createElement("span");
+    nameEl.className = "mcp-item-name";
+    nameEl.textContent = server.name;
+    const configEl = document.createElement("span");
+    configEl.className = "mcp-item-config";
+    configEl.textContent = JSON.stringify(server.config);
+    configEl.title = JSON.stringify(server.config, null, 2);
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "mcp-remove-btn";
+    removeBtn.textContent = "Remove";
+    removeBtn.addEventListener("click", () => {
+      vscode.postMessage({ kind: "mcp_remove", name: server.name } satisfies FromWebview);
+    });
+    item.appendChild(nameEl);
+    item.appendChild(configEl);
+    item.appendChild(removeBtn);
+    mcpListEl.appendChild(item);
+  }
+}
+
+mcpAddBtn.addEventListener("click", () => {
+  const name = mcpNameInput.value.trim();
+  const json = mcpJsonInput.value.trim();
+  if (!name || !json) return;
+  try { JSON.parse(json); } catch { return; }
+  vscode.postMessage({ kind: "mcp_add", name, json } satisfies FromWebview);
+  mcpNameInput.value = "";
+  mcpJsonInput.value = "";
+});
 
 // --- Helpers ---
 
@@ -329,6 +379,11 @@ window.addEventListener("message", (e: MessageEvent) => {
 
     case "model_info": {
       modelBadgeEl.textContent = formatModel(msg.model);
+      break;
+    }
+
+    case "mcp_servers": {
+      renderMcpServers(msg.servers);
       break;
     }
 

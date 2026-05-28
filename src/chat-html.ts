@@ -99,6 +99,27 @@ export function getChatHtml(
   .grant-access-btn { padding: 4px 10px; background: var(--vscode-button-background); color: var(--vscode-button-foreground); border: none; cursor: pointer; border-radius: 2px; font-size: 12px; white-space: nowrap; }
   .grant-access-btn:hover { background: var(--vscode-button-hoverBackground); }
 
+  /* ── MCP Panel ──────────────────────────────────────────── */
+  #mcp-panel { margin-bottom: 8px; font-size: 12px; }
+  #mcp-panel > summary { cursor: pointer; user-select: none; list-style: none; display: flex; align-items: center; gap: 6px; padding: 3px 0; color: var(--vscode-descriptionForeground); font-weight: 600; font-size: 11px; }
+  #mcp-panel > summary::-webkit-details-marker { display: none; }
+  #mcp-panel > summary::before { content: "▶"; font-size: 9px; display: inline-block; transition: transform 0.12s; }
+  #mcp-panel[open] > summary::before { transform: rotate(90deg); }
+  .mcp-badge { font-size: 10px; padding: 0 5px; background: var(--vscode-badge-background); color: var(--vscode-badge-foreground); border-radius: 8px; font-weight: 500; }
+  .mcp-list { display: flex; flex-direction: column; gap: 2px; margin: 4px 0 6px 14px; }
+  .mcp-empty { font-size: 11px; color: var(--vscode-descriptionForeground); font-style: italic; padding: 2px 0; }
+  .mcp-item { display: flex; align-items: center; gap: 6px; padding: 2px 0; }
+  .mcp-item-name { font-family: var(--vscode-editor-font-family); font-weight: 600; color: var(--vscode-foreground); white-space: nowrap; }
+  .mcp-item-config { flex: 1; font-size: 11px; color: var(--vscode-descriptionForeground); font-family: var(--vscode-editor-font-family); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+  .mcp-remove-btn { padding: 1px 6px; font-size: 11px; background: transparent; color: var(--vscode-errorForeground, #f48771); border: 1px solid currentColor; cursor: pointer; border-radius: 2px; flex-shrink: 0; }
+  .mcp-remove-btn:hover { background: var(--vscode-inputValidation-errorBackground, rgba(190,17,0,.12)); }
+  .mcp-add-row { display: flex; gap: 5px; margin-left: 14px; align-items: center; }
+  .mcp-add-row input { background: var(--vscode-input-background); color: var(--vscode-input-foreground); border: 1px solid var(--vscode-input-border); padding: 3px 6px; font-size: 11px; font-family: var(--vscode-editor-font-family); border-radius: 2px; }
+  .mcp-add-row input:focus { outline: 1px solid var(--vscode-focusBorder); }
+  #mcp-name-input { width: 110px; flex-shrink: 0; }
+  #mcp-json-input { flex: 1; min-width: 0; }
+  .mcp-add-btn { padding: 3px 8px; font-size: 11px; flex-shrink: 0; }
+
   /* ── Syntax highlighting (VS Code dark+ compatible) ──────── */
   .hljs { display: block; overflow-x: auto; padding: 12px; background: var(--vscode-textCodeBlock-background, #1e1e1e); color: var(--vscode-editor-foreground, #d4d4d4); border-radius: 4px; }
   .hljs-keyword,.hljs-selector-tag,.hljs-built_in,.hljs-name,.hljs-tag { color: #569cd6; }
@@ -115,6 +136,15 @@ export function getChatHtml(
 </head>
 <body>
 <h1>${safeName}<span id="model-badge"></span></h1>
+<details id="mcp-panel">
+  <summary>MCP Servers <span id="mcp-count" class="mcp-badge">0</span></summary>
+  <div id="mcp-list" class="mcp-list"></div>
+  <div class="mcp-add-row">
+    <input id="mcp-name-input" type="text" placeholder="server-name" autocomplete="off" />
+    <input id="mcp-json-input" type="text" placeholder='{"command":"npx","args":["@pkg/server"]}' autocomplete="off" />
+    <button id="mcp-add-btn" class="mcp-add-btn" type="button">Add</button>
+  </div>
+</details>
 <div id="transcript" aria-live="polite"></div>
 <div id="status"></div>
 <form id="prompt-form">

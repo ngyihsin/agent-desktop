@@ -19,7 +19,8 @@ export type ToWebview =
   | { kind: "grant_access_prompt" }
   | { kind: "tool_uses"; tools: ToolUseInfo[] }
   | { kind: "commands_available"; commands: string[] }
-  | { kind: "model_info"; model: string };
+  | { kind: "model_info"; model: string }
+  | { kind: "mcp_servers"; servers: McpServerInfo[] };
 
 /** A single tool call within an assistant turn. */
 export type ToolUseInfo = {
@@ -27,12 +28,20 @@ export type ToolUseInfo = {
   input: Record<string, unknown>;
 };
 
+/** A single MCP server entry from .mcp.json. */
+export type McpServerInfo = {
+  name: string;
+  config: Record<string, unknown>;
+};
+
 /** Messages the webview sends *to* the extension host. */
 export type FromWebview =
   | { kind: "submit_prompt"; text: string }
   | { kind: "interrupt" }
   | { kind: "request_transcript" }
-  | { kind: "grant_access" };
+  | { kind: "grant_access" }
+  | { kind: "mcp_add"; name: string; json: string }
+  | { kind: "mcp_remove"; name: string };
 
 /** Persisted transcript entry — see DESIGN Data Model. */
 export type TranscriptMessage =
